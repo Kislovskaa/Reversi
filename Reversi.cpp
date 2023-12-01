@@ -93,8 +93,8 @@ void KasLaimejo(char(&lentele)[8][8]) {
 	int zaidejo_taskai = patikrintiDabartiniRezultata(lentele, 'O');
 	int Varzovo_taskai = patikrintiDabartiniRezultata(lentele, 'X');
 
-	cout << "Jus surinkote: " << zaidejo_taskai << " tasku " << endl; ;
-	cout << "Varzovas surinko: " << Varzovo_taskai << " tasku " << endl;
+	cout << "Jus surinkote: " << zaidejo_taskai << " T " << endl; ;
+	cout << "Varzovas surinko: " << Varzovo_taskai << " T " << endl;
 	if (zaidejo_taskai == Varzovo_taskai) {
 		cout << "Lygiasias!";
 		return;
@@ -147,13 +147,6 @@ vector< vector<int>> ListPakeisti(char(lentele)[8][8], int eilute, int stulpelis
 
 
 void pakeisti(char(lentele)[8][8], int eilute, int stulpelis, char zaidejas) {
-	int zaidejas_total = patikrintiDabartiniRezultata(lentele, 'O');
-	int Computer_total = patikrintiDabartiniRezultata(lentele, 'X');
-	cout << "_________________________________________________________________________________________________________" << endl;
-	cout << "                                                                               Jus surinkote: " << zaidejas_total << " tasku    |" << endl;
-	cout << "                                                                               Varzovas surinko: " << Computer_total << " tasku |" << endl;
-	cout << "---------------------------------------------------------------------------------------------------------" << endl;
-	cout << endl;
 	cout << "   A  B  C  D   E  F  G  H" << endl;
 	vector< vector<int>> d_to_pakeisti;
 
@@ -271,7 +264,11 @@ vector< vector<int>> GautiKurJudet(char lentele[8][8], char zaidejas) {
 
 
 void AtspasdintKurJudet(char lentele[8][8], char zaidejas) {
-
+	int zaidejas_total = patikrintiDabartiniRezultata(lentele, 'O');
+	int Computer_total = patikrintiDabartiniRezultata(lentele, 'X');
+	cout << "                                                                               Jus surinkote:    " << zaidejas_total << " T " << endl;
+	cout << "                                                                               Varzovas surinko: " << Computer_total << " T " << endl;
+	cout << endl; 
 	string stulpelis = "abcdefgh";
 	string ivedimas = "";
 	string role = (zaidejas == 'O') ? "Jus" : "Varzovas";
@@ -282,6 +279,7 @@ void AtspasdintKurJudet(char lentele[8][8], char zaidejas) {
 		cout << "(" << stulpelis.at(vec[0]) << "," << vec[1] << ")  ";
 	}
 	cout << endl;
+
 }
 
 
@@ -316,7 +314,11 @@ int main()
 
 		try
 		{
-			int randomInt = rand() % (sarasasVarzovo.size());
+			int randomInt;
+			if (sarasasVarzovo.size() > 1) 
+				randomInt = rand() % (sarasasVarzovo.size());
+			else 
+				randomInt = 0;
 			cout << "Varzovas pasirinko: (" << (char)('A' + sarasasVarzovo[randomInt][0]) << "," << sarasasVarzovo[randomInt][1] << ")" << endl;
 			Sleep(2000);
 			system("cls");
