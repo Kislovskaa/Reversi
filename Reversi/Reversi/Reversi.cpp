@@ -1,338 +1,289 @@
 #include <iostream>
-#include <stdexcept>
-#include <array>
 #include <vector>
-#include <regex>
-#include <stdlib.h>
-#include <windows.h>
+#include <cstdlib>
+#include <ctime>
+#include <windows.h> 
 
 using namespace std;
 
-string vartotojasIvede = "start";
-int xIvedimas = 0;
-int yIvedimas = 0;
 
-int aplinkiniaiPosPakytimai[8][2] = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1} };
+class Player {
+private:
+    string name;
+    char symbol;
+
+public:
+    Player(const string& name, char symbol) : name(name), symbol(symbol) {}
+
+    string getName() const {
+        return name;
+    }
+
+    char getSymbol() const {
+        return symbol;
+    }
+};
+
+class Board {
+private:
+    static const int SIZE = 8;
+    char board[SIZE][SIZE];
+
+public:
+    Board() {
+        initializeBoard();
+    }
+
+    void initializeBoard() {
+        for (int i = 0; i < SIZE; ++i) {
+            for (int j = 0; j < SIZE; ++j) {
+                board[i][j] = '-';
+            }
+        }
+
+        board[3][3] = 'O';
+        board[3][4] = 'X';
+        board[4][3] = 'X';
+        board[4][4] = 'O';
+    }
+
+    char getCell(int row, int col) const {
+        return board[row][col];
+    }
+
+    void setCell(int row, int col, char value) {
+        board[row][col] = value;
+    }
+
+    void printBoard() const {
+        cout << endl;
+        cout << "   A  B  C  D  E  F  G  H" << endl;
+        for (int i = 0; i < SIZE; ++i) {
+            cout << i << "  ";
+            for (int j = 0; j < SIZE; ++j) {
+                cout << board[i][j] << "  ";
+            }
+            cout << endl;
+        }
+    }
+
+    bool isValidIndex(int row, int col) const {
+        return row >= 0 && row < SIZE && col >= 0 && col < SIZE;
+    }
+};
+
+class ReversiGame {
+private:
+    static string userInput;
+    static const int SIZE = 8;
+
+public:
+    static void startGame(Board& board) {
+        board.printBoard();
+    }
+
+    static bool isValidMove(const Board& board, const string& input, const Player& player) {
+        string columns = "abcdefgh";
+        string rows = "01234567";
+
+        if (input == "start" || input == "exit") {
+            userInput = input;
+            return true;
+        }
+
+        if (input.length() != 2) {
+            return false;
+        }
+
+        char columnSymbol = input[0];
+        char rowSymbol = input[1];
+
+        if (columns.find(columnSymbol) == string::npos || rows.find(rowSymbol) == string::npos) {
+            return false;
+        }
+
+        int columnIndex = columns.find(columnSymbol);
+        int rowIndex = rows.find(rowSymbol);
+
+        if (!board.isValidIndex(rowIndex, columnIndex) || board.getCell(rowIndex, columnIndex) != '-') {
+            return false;
+        }
+
+        vector<vector<int>> moves = getAvailableMoves(board, player);
+        for (const auto& move : moves) {
+            if (move[0] == columnIndex && move[1] == rowIndex) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    static vector<vector<int>> getAvailableMoves(const Board& board, const Player& player) {
+        vector<vector<int>> moves;
+
+        for (int i = 0; i < SIZE; ++i) {
+            for (int j = 0; j < SIZE; ++j) {
+                if (board.getCell(i, j) == '-') {
+                    if (canFlip(board, i, j, player.getSymbol())) {
+                        vector<int> move = { j, i };
+                        moves.push_back(move);
+                    }
+                }
+            }
+        }
+        return moves;
+    }
+
+    static void applyMove(Board& board, int rowIndex, int columnIndex, char playerSymbol) {
+        board.setCell(rowIndex, columnIndex, playerSymbol);
+        flipPieces(board, rowIndex, columnIndex, playerSymbol);
+    }
+
+    static void flipPieces(Board& board, int row, int col, char playerSymbol) {
+        int surroundingOffsets[][2] = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1} };
+
+        for (const auto& offset : surroundingOffsets) {
+            int currentRow = row + offset[0];
+            int currentCol = col + offset[1];
+
+            while (board.isValidIndex(currentRow, currentCol) &&
+                board.getCell(currentRow, currentCol) != playerSymbol &&
+                board.getCell(currentRow, currentCol) != '-') {
+                board.setCell(currentRow, currentCol, playerSymbol);
+                currentRow += offset[0];
+                currentCol += offset[1];
+            }
+        }
+    }
+
+    static bool canFlip(const Board& board, int row, int col, char playerSymbol) {
+        char opponent = (playerSymbol == 'O') ? 'X' : 'O';
+
+        int surroundingOffsets[][2] = { {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1} };
+
+        for (const auto& offset : surroundingOffsets) {
+            int currentRow = row + offset[0];
+            int currentCol = col + offset[1];
+
+            if (board.isValidIndex(currentRow, currentCol) && board.getCell(currentRow, currentCol) == opponent) {
+                while (board.isValidIndex(currentRow, currentCol) &&
+                    board.getCell(currentRow, currentCol) == opponent) {
+                    currentRow += offset[0];
+                    currentCol += offset[1];
+                }
+
+                if (board.isValidIndex(currentRow, currentCol) &&
+                    board.getCell(currentRow, currentCol) == playerSymbol) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    static void printAvailableMoves(const Board& board, const Player& player) {
+        int playerScore = countCurrentScore(board, player.getSymbol());
+        int opponentScore = countCurrentScore(board, (player.getSymbol() == 'O') ? 'X' : 'O');
+        cout << "                                    " << player.getName() << " scored: " << playerScore << " points" << endl;
+        cout << "                                    Opponent scored: " << opponentScore << " points" << endl;
+        cout << endl;
+
+        string columns = "abcdefgh";
+        cout << player.getName() << ", you can choose from the following moves:" << endl;
+
+        vector<vector<int>> moves = getAvailableMoves(board, player);
+
+        for (const auto& move : moves) {
+            cout << "(" << columns[move[0]] << "," << move[1] << ")  ";
+        }
+
+        cout << endl << endl;
+    }
+
+    static int countCurrentScore(const Board& board, char player) {
+        int total = 0;
+        for (int i = 0; i < SIZE; ++i) {
+            for (int j = 0; j < SIZE; ++j) {
+                if (board.getCell(i, j) == player) {
+                    total += 1;
+                }
+            }
+        }
+        return total;
+    }
+
+    static void printWinner(const Board& board, const Player& player, const Player& opponent) {
+        int playerScore = countCurrentScore(board, player.getSymbol());
+        int opponentScore = countCurrentScore(board, opponent.getSymbol());
+        if (playerScore == opponentScore) {
+            cout << "It's a tie!" << endl;
+        }
+        else {
+            cout << ((playerScore > opponentScore) ? player.getName() + " WINS!" :
+                opponent.getName() + " WINS!") << endl;
+        }
+    }
+};
 
 
-void pradetiZaidima(char lentele[8][8]);
-void SpausdintiLentele(char naujalentele[8][8], int xIvedimas_C = -1, int yIvedimas_C = -1, string ivedimas = ::vartotojasIvede);
-void KasLaimejo(char(&lentele)[8][8]);
-void AtspasdintKurJudet(char lentele[8][8], char zaidejas);
-void pakeisti(char(lentele)[8][8], int eilute, int stulpelis, char zaidejas);
-bool PatikrintiIrGaliJudet(char lentele[8][8], string ivedimas, char zaidejas);
-vector< vector<int>> KurJudet(char lentele[8][8], char zaidejas);
-vector< vector<int>> GautiKurJudet(char lentele[8][8], char zaidejas);
+string ReversiGame::userInput = "start";
 
-void pradetiZaidima(char lentele[8][8])
-{
-	cout << "   A  B  C  D  E  F  G  H" << endl;
-	for (int i = 0; i < 8; i++)
-	{
-		cout << (i) << "  ";
-		for (int j = 0; j < 8; j++)
-		{
-			lentele[i][j] = '-';
-			lentele[3][3] = 'O';
-			lentele[3][4] = 'X';
-			lentele[4][3] = 'X';
-			lentele[4][4] = 'O';
 
-			cout << lentele[i][j] << "  ";
-		}
-		cout << endl;
-	}
+int main() {
+    Board board;
+    Player player("Player", 'O');
+    Player opponent("Opponent", 'X');
 
+    ReversiGame::startGame(board);
+    string userInput = "start";
+
+    while (userInput != "exit") {
+        vector<vector<int>> moves = ReversiGame::getAvailableMoves(board, player);
+        ReversiGame::printAvailableMoves(board, player);
+
+        cout << player.getName() << " chose: ";
+        cin >> userInput;
+
+        if (userInput == "exit") {
+            break;
+        }
+
+        while (!ReversiGame::isValidMove(board, userInput, player)) {
+            cout << "Invalid choice, try again: ";
+            cin >> userInput;
+        }
+
+        int columnIndex = userInput[0] - 'a';
+        int rowIndex = userInput[1] - '0';
+
+        ReversiGame::applyMove(board, rowIndex, columnIndex, player.getSymbol());
+        board.printBoard();
+
+        vector<vector<int>> opponentMoves = ReversiGame::getAvailableMoves(board, opponent);
+        ReversiGame::printAvailableMoves(board, opponent);
+
+        try {
+            int randomIndex = (opponentMoves.size() > 1) ? rand() % opponentMoves.size() : 0;
+            cout << opponent.getName() << " chose: ("
+                << static_cast<char>('A' + opponentMoves[randomIndex][0]) << ","
+                << opponentMoves[randomIndex][1] << ")" << endl;
+            Sleep(2000);
+            system("cls");
+            ReversiGame::applyMove(board, opponentMoves[randomIndex][1], opponentMoves[randomIndex][0], opponent.getSymbol());
+            board.printBoard();
+        }
+        catch (...) {
+            cout << "The " << opponent.getName() << " has no valid moves at the moment. It's your turn again."
+                << endl;
+            continue;
+        }
+    }
+
+    ReversiGame::printWinner(board, player, opponent);
+    cout << endl;
+
+    return 0;
 }
 
-
-void SpausdintiLentele(char naujalentele[8][8], int xIvedimas_C, int yIvedimas_C, string ivedimas)
-{
-
-	cout << endl;
-
-	if (xIvedimas_C == -1 || yIvedimas_C == -1)
-	{
-		xIvedimas = string("abcdefgh").find(ivedimas[0]);
-		yIvedimas = string("01234567").find(ivedimas[1]);
-		naujalentele[yIvedimas][xIvedimas] = 'O';
-		pakeisti(naujalentele, xIvedimas, yIvedimas, 'O');
-	}
-	else
-	{
-		naujalentele[yIvedimas_C][xIvedimas_C] = 'X';
-		pakeisti(naujalentele, xIvedimas_C, yIvedimas_C, 'X');
-	}
-
-
-	for (int i = 0; i < 8; i++)
-	{
-		cout << (i) << "  ";
-		for (int j = 0; j < 8; j++)
-		{
-			cout << naujalentele[i][j] << "  ";
-		}
-		cout << endl;
-
-	}
-}
-
-
-int patikrintiDabartiniRezultata(char lentele[8][8], char Role) {
-	int total = 0;
-	for (int i = 0; i < 8; ++i)
-		for (int j = 0; j < 8; ++j)
-			if (lentele[i][j] == Role)
-				total += 1;
-
-	return total;
-}
-
-
-void KasLaimejo(char(&lentele)[8][8]) {
-	int zaidejo_taskai = patikrintiDabartiniRezultata(lentele, 'O');
-	int Varzovo_taskai = patikrintiDabartiniRezultata(lentele, 'X');
-
-	cout << "Jus surinkote: " << zaidejo_taskai << " T " << endl; ;
-	cout << "Varzovas surinko: " << Varzovo_taskai << " T " << endl;
-	if (zaidejo_taskai == Varzovo_taskai) {
-		cout << "Lygiasias!";
-		return;
-	}
-
-	cout << ((zaidejo_taskai > Varzovo_taskai) ? "JUS LAIMEJOTE" : "VARZOVAS LAIMEJO");
-
-}
-
-
-bool TikrintTrajektorija(char lentele[8][8], char charPadetis, int eilute, int stulpelis, int trajectory[], char zaidejas)
-{
-	char kitasZaidejas = (zaidejas == 'O') ? 'X' : 'O';
-	if (charPadetis == kitasZaidejas) {
-
-		int dabartineEilute = eilute + trajectory[0];
-		int dabartinisStulpelis = stulpelis + trajectory[1];
-		while (charPadetis == kitasZaidejas) {
-			dabartineEilute += trajectory[0];
-			dabartinisStulpelis += trajectory[1];
-			if (dabartineEilute > 7 || dabartineEilute < 0 || dabartinisStulpelis > 7 || dabartineEilute < 0)
-				break;
-			charPadetis = lentele[dabartineEilute][dabartinisStulpelis];
-		}
-		if (charPadetis == zaidejas)
-			return true;
-	}
-	return false;
-}
-
-
-vector< vector<int>> ListPakeisti(char(lentele)[8][8], int eilute, int stulpelis, char zaidejas, int trajectory[], vector< vector<int>> d_to_pakeisti)
-{
-	char kitasZaidejas = (zaidejas == 'O') ? 'X' : 'O';
-	eilute = eilute + trajectory[0];
-	stulpelis = stulpelis + trajectory[1];
-	zaidejas = lentele[stulpelis][eilute];
-
-
-	while (zaidejas == kitasZaidejas) {
-		vector<int> d = { stulpelis, eilute };
-		d_to_pakeisti.push_back(d);
-		eilute += trajectory[0];
-		stulpelis += trajectory[1];
-
-		zaidejas = lentele[stulpelis][eilute];
-	}
-	return d_to_pakeisti;
-}
-
-
-void pakeisti(char(lentele)[8][8], int eilute, int stulpelis, char zaidejas) {
-	cout << "   A  B  C  D   E  F  G  H" << endl;
-	vector< vector<int>> d_to_pakeisti;
-
-	char kitasZaidejas = (zaidejas == 'O') ? 'X' : 'O';
-
-
-	for (auto deltas : aplinkiniaiPosPakytimai) {
-
-		int dabartineEilute = eilute + deltas[0];
-		int dabartinisStulpelis = stulpelis + deltas[1];
-
-
-		if (dabartineEilute > 7 || dabartineEilute < 0 || dabartinisStulpelis > 7 || dabartinisStulpelis < 0)
-			continue;
-
-
-		char charPadetis = lentele[dabartinisStulpelis][dabartineEilute];
-
-
-		bool pakeisti_this_direction = false;
-
-
-		if (TikrintTrajektorija(lentele, charPadetis, eilute, stulpelis, deltas, zaidejas)) {
-			d_to_pakeisti = ListPakeisti(lentele, eilute, stulpelis, zaidejas, deltas, d_to_pakeisti);
-		}
-	}
-
-	for (auto pos : d_to_pakeisti)
-		lentele[pos[0]][pos[1]] = zaidejas;
-}
-
-
-bool ArPakeistiGalim(char lentele[8][8], int eilute, int stulpelis, char zaidejas) {
-	char kitasZaidejas = (zaidejas == 'O') ? 'X' : 'O';
-
-	for (auto deltas : aplinkiniaiPosPakytimai) {
-
-		if (eilute + deltas[0] > 7 || eilute + deltas[0] < 0 || stulpelis + deltas[1] > 7 || stulpelis + deltas[1] < 0) {
-			continue;
-		}
-
-		char charPadetis = lentele[eilute + deltas[0]][stulpelis + deltas[1]];
-
-		if (TikrintTrajektorija(lentele, charPadetis, eilute, stulpelis, deltas, zaidejas)) return true;
-	}
-
-	return false;
-}
-
-
-bool PatikrintiIrGaliJudet(char lentele[8][8], string ivedimas, char zaidejas) {
-	string eilute = "abcdefgh";
-	string stulpelis = "01234567";
-
-	if (ivedimas == "start" || ivedimas == "Start" || ivedimas == "exit" || ivedimas == "Exit") {
-		vartotojasIvede = ivedimas;
-		return true;
-	}
-
-	if (ivedimas.length() != 2) {
-		return false;
-	}
-
-	char eiluteSimbolis = ivedimas[0];
-	char stulpelisSimbolis = ivedimas[1];
-
-	if (eilute.find(eiluteSimbolis) == string::npos || stulpelis.find(stulpelisSimbolis) == string::npos) {
-		return false;
-	}
-
-	int eiluteIndeksas = eilute.find(eiluteSimbolis);
-	int stulpelisIndeksas = stulpelis.find(stulpelisSimbolis);
-
-	if (lentele[stulpelisIndeksas][eiluteIndeksas] != '-') {
-		return false;
-	}
-
-	vector<vector<int>> sarasas = KurJudet(lentele, zaidejas);
-	if (find(sarasas.begin(), sarasas.end(), vector<int>{eiluteIndeksas, stulpelisIndeksas}) == sarasas.end()) {
-		return false;
-	}
-
-	return true;
-}
-
-
-vector< vector<int>> KurJudet(char lentele[8][8], char zaidejas) {
-
-	vector< vector<int>> sarasas;
-
-	for (int i = 0; i < 8; ++i) {
-		for (int j = 0; j < 8; ++j) {
-
-
-			if (lentele[i][j] == '-') {
-
-
-				if (ArPakeistiGalim(lentele, i, j, zaidejas)) {
-
-					vector<int> move = { j, i };
-					sarasas.push_back(move);
-				}
-			}
-		}
-	}
-
-
-	return sarasas;
-}
-
-
-vector< vector<int>> GautiKurJudet(char lentele[8][8], char zaidejas) {
-	return KurJudet(lentele, zaidejas);
-}
-
-
-void AtspasdintKurJudet(char lentele[8][8], char zaidejas) {
-	int zaidejas_total = patikrintiDabartiniRezultata(lentele, 'O');
-	int Computer_total = patikrintiDabartiniRezultata(lentele, 'X');
-	cout << "                                                                               Jus surinkote:    " << zaidejas_total << " T " << endl;
-	cout << "                                                                               Varzovas surinko: " << Computer_total << " T " << endl;
-	cout << endl; 
-	string stulpelis = "abcdefgh";
-	string ivedimas = "";
-	string role = (zaidejas == 'O') ? "Jus" : "Varzovas";
-	cout << endl;
-	cout << role << " galite pasirinkiti is situ:" << endl;
-	auto v = GautiKurJudet(lentele, zaidejas);
-	for (const auto& vec : v) {
-		cout << "(" << stulpelis.at(vec[0]) << "," << vec[1] << ")  ";
-	}
-	cout << endl;
-
-}
-
-
-int main()
-{
-	char lentele[8][8] = { ' ' };
-	vector< vector<int>> sarasas;
-
-	pradetiZaidima(lentele);
-	while (vartotojasIvede != "Exit" && vartotojasIvede != "exit")
-	{
-		sarasas = KurJudet(lentele, 'O');
-		AtspasdintKurJudet(lentele, 'O');
-
-		cout << "Zaidejas pasirinko: ";
-		cin >> vartotojasIvede;
-
-		if (vartotojasIvede == "Exit" || vartotojasIvede == "exit") {
-			break;
-		}
-
-		while (!PatikrintiIrGaliJudet(lentele, vartotojasIvede, 'O'))
-		{
-			cout << "Netinkamas pasirinkimas, bandykite dar karta: ";
-			cin >> vartotojasIvede;
-		}
-
-		SpausdintiLentele(lentele);
-		vector< vector<int>> sarasasVarzovo;
-		sarasasVarzovo = KurJudet(lentele, 'X');
-		AtspasdintKurJudet(lentele, 'X');
-
-		try
-		{
-			int randomInt;
-			if (sarasasVarzovo.size() > 1) 
-				randomInt = rand() % (sarasasVarzovo.size());
-			else 
-				randomInt = 0;
-			cout << "Varzovas pasirinko: (" << (char)('A' + sarasasVarzovo[randomInt][0]) << "," << sarasasVarzovo[randomInt][1] << ")" << endl;
-			Sleep(2000);
-			system("cls");
-			SpausdintiLentele(lentele, sarasasVarzovo[randomInt][0], sarasasVarzovo[randomInt][1]);
-		}
-		catch (exception e)
-		{
-			cout << "Siuo metu varzovas neturi pasirinkimo, dabar jusu eile. ";
-			continue;
-		}
-	}
-
-	KasLaimejo(lentele);
-	cout << endl;
-
-	return 0;
-}
